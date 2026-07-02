@@ -2,7 +2,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <semaphore.h>
@@ -16,14 +15,14 @@
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
-        printf("Usage: ./producer <id> <num_items>\n");
+        printf("Usage: ./consumer <id> <num_items>\n");
         return 1;
     }
 
-    int producer_id = atoi(argv[1]);
+    int consumer_id = atoi(argv[1]);
     int num_items = atoi(argv[2]);
 
-    int shmid = shmget(SHM_KEY, sizeof(shared_buffer_t), IPC_CREAT | 0666);
+    int shmid = shmget(SHM_KEY, sizeof(shared_buffer_t), 0666);
     if (shmid == -1) {
         perror("shmget");
         return 1;
@@ -35,30 +34,28 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    sem_t *mutex = sem_open(SEM_MUTEX, O_CREAT, 0666, 1);
-    sem_t *empty = sem_open(SEM_EMPTY, O_CREAT, 0666, BUFFER_SIZE);
-    sem_t *full = sem_open(SEM_FULL, O_CREAT, 0666, 0);
+    sem_t *mutex = sem_open(SEM_MUTEX, 0);
+    sem_t *empty = sem_open(SEM_EMPTY, 0);
+    sem_t *full = sem_open(SEM_FULL, 0);
 
     if (mutex == SEM_FAILED || empty == SEM_FAILED || full == SEM_FAILED) {
         perror("sem_open");
         return 1;
     }
 
-    for (int i = 1; i <= num_items; i++) {
-        int value = producer_id * 1000 + i;
-
-        sem_wait(empty);
+    for (int i = 0; i < num_items; i++) {
+        sem_wait(full);
         sem_wait(mutex);
 
-        shared_buffer->buffer[shared_buffer->head].value = value;
-        shared_buffer->buffer[shared_buffer->head].producer_id = producer_id;
-        shared_buffer->head = (shared_buffer->head + 1) % BUFFER_SIZE;
-        shared_buffer->count++;
+        item_t item = shared_buffer->buffer[shared_buffer->tail];
+        shared_buffer->tail = (shared_buffer->tail + 1) % BUFFER_SIZE;
+        shared_buffer->count--;
 
-        printf("Producer %d: Produced value %d\n", producer_id, value);
+        printf("Consumer %d: Consumed value %d from Producer %d\n",
+               consumer_id, item.value, item.producer_id);
 
         sem_post(mutex);
-        sem_post(full);
+        sem_post(empty);
     }
 
     shmdt(shared_buffer);
