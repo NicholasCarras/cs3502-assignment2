@@ -4,7 +4,7 @@
 #define BUFFER_H
 
 #define BUFFER_SIZE 10
-#define SHM_Key 0x1234
+#define SHM_KEY 0x1234
 
 typedef struct {
 	int value;
@@ -16,6 +16,6 @@ typedef struct {
 	int head;
 	int tail;
 	int count;
-} shared_buffer_t
+} shared_buffer_t;
 
 #endif
